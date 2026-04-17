@@ -259,6 +259,7 @@ int phy_et1011c_init(void);
 int phy_lxt_init(void);
 int phy_marvell_init(void);
 int phy_micrel_init(void);
+int phy_motorcomm_init(void);
 int phy_natsemi_init(void);
 int phy_realtek_init(void);
 int phy_smsc_init(void);

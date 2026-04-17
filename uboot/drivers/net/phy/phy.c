@@ -491,6 +491,9 @@ int phy_init(void)
 #ifdef CONFIG_PHY_MICREL
 	phy_micrel_init();
 #endif
+#ifdef CONFIG_MOTORCOMM_PHY
+	phy_motorcomm_init();
+#endif
 #ifdef CONFIG_PHY_NATSEMI
 	phy_natsemi_init();
 #endif

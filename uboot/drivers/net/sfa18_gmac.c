@@ -124,6 +124,9 @@ static int sgmac_hw_init(struct eth_device *dev, struct sgmac_priv *priv)
 	u32 value, ctrl;
 	/* Save the ctrl register value */
 	ctrl = readl(priv->base + GMAC_CONTROL) & GMAC_CONTROL_SPD_MASK;
+	printf("sgmac: hw_init ctrl=0x%x dma_bus_mode=0x%x\n",
+	       readl(priv->base + GMAC_CONTROL),
+	       readl(priv->base + GMAC_DMA_BUS_MODE));
 
 	/* SW reset */
 #ifndef CONFIG_NO_SWITCH_AND_PHY
@@ -132,11 +135,15 @@ static int sgmac_hw_init(struct eth_device *dev, struct sgmac_priv *priv)
 		mdelay(10);
 		i++;
 		if (i > 10) {
-			printf("DMA reset timeout\n");
+			printf("DMA reset timeout, dma_bus_mode=0x%x ctrl=0x%x\n",
+			       readl(priv->base + GMAC_DMA_BUS_MODE),
+			       readl(priv->base + GMAC_CONTROL));
 			return -ETIMEDOUT;
 		}
 	}
 #endif
+	printf("sgmac: hw_init reset done dma_bus_mode=0x%x\n",
+	       readl(priv->base + GMAC_DMA_BUS_MODE));
 	sf_gmac_write_hwaddr(dev);
 	value = (0x10 << DMA_BUS_MODE_PBL_SHIFT) |
 		(0x10 << DMA_BUS_MODE_RPBL_SHIFT) | DMA_BUS_MODE_FB |
@@ -541,6 +548,14 @@ static int sgmac_phy_init(struct sgmac_priv *priv, void *dev)
 {
 	struct phy_device *phydev;
 	int mask = 0xffffffff, ret;
+	printf("sgmac: phy_init bus=%s mask=0x%x interface=%s\n",
+	       priv->bus ? priv->bus->name : "<null>", mask,
+#ifdef CONFIG_SFA18_RGMII_GMAC
+	       "RGMII"
+#else
+	       "RMII"
+#endif
+	);
 
 #ifdef CONFIG_SFA18_RGMII_GMAC
 	phydev = phy_find_by_mask(priv->bus, mask, PHY_INTERFACE_MODE_RGMII);
@@ -549,6 +564,8 @@ static int sgmac_phy_init(struct sgmac_priv *priv, void *dev)
 #endif
 	if (!phydev)
 		return -ENODEV;
+	printf("sgmac: phy_found addr=%d phy_id=0x%x drv=%s\n", phydev->addr,
+	       phydev->phy_id, phydev->drv ? phydev->drv->name : "<null>");
 
 	phy_connect_dev(phydev, dev);
 
@@ -564,6 +581,9 @@ static int sgmac_phy_init(struct sgmac_priv *priv, void *dev)
 	ret = phy_config(phydev);
 	if (ret)
 		return ret;
+	printf("sgmac: phy_config done addr=%d interface=%d supported=0x%x advertising=0x%x\n",
+	       phydev->addr, phydev->interface, phydev->supported,
+	       phydev->advertising);
 	// enable phy rx clk here, or gmac dma will reset fail
 	if (phydev->phy_id == 0x10a)
 		yt8521_config_init(phydev);
@@ -921,6 +941,9 @@ int sf_gmac_register(void)
 					priv->phydev->dev->name);
 			return ret;
 		}
+		printf("sgmac: phy_startup done addr=%d link=%d speed=%d duplex=%d\n",
+		       priv->phydev->addr, priv->phydev->link,
+		       priv->phydev->speed, priv->phydev->duplex);
 
 		/* Enable Emac Registers */
 		sgmac_adjust_link(priv, priv->phydev);

@@ -100,6 +100,7 @@ static int yt8522_config_init(struct phy_device *phydev)
 	int ret;
 	int val;
 	int chip_mode;
+	int reg1a;
 
 	chip_mode = ytphy_read_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1);
 	if (chip_mode < 0)
@@ -111,42 +112,44 @@ static int yt8522_config_init(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	#ifdef CONFIG_SFA18_RMII_GMAC
-	if (chip_mode != YT8522_CHIP_MODE_RMII1) {
-		val &= ~YT8522_CHIP_MODE_MASK;
-		val |= YT8522_CHIP_MODE_RMII1;
-		ret = ytphy_write_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1, val);
-		if (ret < 0)
-			return ret;
-
-		chip_mode = YT8522_CHIP_MODE_RMII1;
-	}
-	#endif
+	reg1a = phy_read(phydev, MDIO_DEVAD_NONE, 0x1a);
+	printf("yt8522: addr=%d config_init combo=0x%x chip_mode=%d reg1a=0x%x\n",
+	       phydev->addr, val, chip_mode, reg1a);
 
 	if (chip_mode == YT8522_CHIP_MODE_RMII2) {
 		val |= BIT(4);
 		ret = ytphy_write_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1, val);
 		if (ret < 0)
 			return ret;
+		printf("yt8522: addr=%d apply RMII2 combo=0x%x\n", phydev->addr,
+		       val);
 
 		ret = ytphy_write_ext(phydev, YT8522_TX_DELAY_CONTROL, 0x9f);
 		if (ret < 0)
 			return ret;
+		printf("yt8522: addr=%d write ext 0x19=0x9f\n", phydev->addr);
 
 		ret = ytphy_write_ext(phydev, YT8522_EXTENDED_PAD_CONTROL, 0x81d4);
 		if (ret < 0)
 			return ret;
+		printf("yt8522: addr=%d write ext 0x4001=0x81d4\n", phydev->addr);
 	} else if (chip_mode == YT8522_CHIP_MODE_RMII1) {
 		val |= BIT(4);
 		ret = ytphy_write_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1, val);
 		if (ret < 0)
 			return ret;
+		printf("yt8522: addr=%d apply RMII1 combo=0x%x\n", phydev->addr,
+		       val);
+	} else {
+		printf("yt8522: addr=%d non-rmii chip_mode=%d\n", phydev->addr,
+		       chip_mode);
 	}
 
 	if (chip_mode == YT8522_CHIP_MODE_MII || chip_mode == YT8522_CHIP_MODE_REMII) {
 		ret = ytphy_write_ext(phydev, YT8522_TX_CLK_DELAY, 0);
 		if (ret < 0)
 			return ret;
+		printf("yt8522: addr=%d write ext 0x4210=0x0\n", phydev->addr);
 	}
 
 	ret = ytphy_write_ext(phydev, YT8522_ANAGLOG_IF_CTRL, 0xbf2a);
@@ -168,11 +171,18 @@ static int yt8522_config_init(struct phy_device *phydev)
 	val = ytphy_read_ext(phydev, YT8512_EXTREG_SLEEP_CONTROL1);
 	if (val < 0)
 		return val;
+	printf("yt8522: addr=%d sleep_ctrl before=0x%x\n", phydev->addr, val);
 
 	val &= ~BIT(YT8512_EN_SLEEP_SW_BIT);
 	ret = ytphy_write_ext(phydev, YT8512_EXTREG_SLEEP_CONTROL1, val);
 	if (ret < 0)
 		return ret;
+	printf("yt8522: addr=%d sleep_ctrl after=0x%x\n", phydev->addr, val);
+
+	val = ytphy_read_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1);
+	reg1a = phy_read(phydev, MDIO_DEVAD_NONE, 0x1a);
+	printf("yt8522: addr=%d final combo=0x%x reg1a=0x%x\n", phydev->addr,
+	       val, reg1a);
 
 	ret = genphy_config_aneg(phydev);
 	if (ret < 0)
@@ -181,6 +191,7 @@ static int yt8522_config_init(struct phy_device *phydev)
 	ret = ytphy_soft_reset(phydev);
 	if (ret < 0)
 		return ret;
+	printf("yt8522: addr=%d soft reset done\n", phydev->addr);
 
 	return 0;
 }

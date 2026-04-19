@@ -272,10 +272,14 @@ static int sgmac_dma_desc_rings_init(struct sgmac_priv *priv) {
 	bfsize = ALIGN(MAX_FRAME_SIZE + ETH_HLEN + ETH_FCS_LEN + 2, BUF_ALIGN);
 
 	priv->dma_rx_alloc = malloc( DMA_RX_RING_SZ * sizeof(struct sgmac_dma_desc) + BUF_ALIGN);
+	if (!priv->dma_rx_alloc)
+		return -ENOMEM;
 	priv->dma_rx = (struct sgmac_dma_desc *)(priv->dma_rx_alloc+ BUF_ALIGN - ((uint)priv->dma_rx_alloc % BUF_ALIGN));
 	priv->dma_rx_phy = (u32 )virt_to_phys(priv->dma_rx);
 
 	priv->dma_tx_alloc = malloc( DMA_TX_RING_SZ * sizeof(struct sgmac_dma_desc) + BUF_ALIGN);
+	if (!priv->dma_tx_alloc)
+		return -ENOMEM;
 	priv->dma_tx = (struct sgmac_dma_desc *)(priv->dma_tx_alloc+ BUF_ALIGN - ((uint)priv->dma_tx_alloc % BUF_ALIGN));
 	priv->dma_tx_phy = (u32 )virt_to_phys(priv->dma_tx);
 
@@ -283,12 +287,16 @@ static int sgmac_dma_desc_rings_init(struct sgmac_priv *priv) {
 	priv->dma_buf_sz = bfsize;
 	desc_init_rx_desc(priv->dma_rx, DMA_RX_RING_SZ, priv->dma_buf_sz);
 	priv->rx_buf_alloc = malloc(bfsize* DMA_RX_RING_SZ + BUF_ALIGN);
+	if (!priv->rx_buf_alloc)
+		return -ENOMEM;
 	priv->rx_buf= (priv->rx_buf_alloc + BUF_ALIGN - ((uint)priv->rx_buf_alloc % BUF_ALIGN));
 
 	sgmac_rx_fill(priv);
 
 	desc_init_tx_desc(priv->dma_tx, DMA_TX_RING_SZ);
 	priv->tx_buf_alloc = malloc(bfsize* DMA_TX_RING_SZ + BUF_ALIGN);
+	if (!priv->tx_buf_alloc)
+		return -ENOMEM;
 	priv->tx_buf= (priv->tx_buf_alloc + BUF_ALIGN - ((uint)priv->tx_buf_alloc % BUF_ALIGN));
 	sgmac_tx_fill(priv);
 
@@ -553,7 +561,9 @@ static int sgmac_phy_init(struct sgmac_priv *priv, void *dev)
 	phydev->advertising = phydev->supported;
 
 	priv->phydev = phydev;
-	phy_config(phydev);
+	ret = phy_config(phydev);
+	if (ret)
+		return ret;
 	// enable phy rx clk here, or gmac dma will reset fail
 	if (phydev->phy_id == 0x10a)
 		yt8521_config_init(phydev);
@@ -588,6 +598,7 @@ static void sf_trigger_eswitch_hwReset(void)
 }
 #endif
 
+#ifdef CONFIG_SFA18_RGMII_GMAC
 int sf_get_gmac_delay_from_factory(unsigned char *buf)
 {
 	struct udevice *udev;
@@ -612,13 +623,16 @@ static int strtou32(const char *str, unsigned int base, u32 *result)
 
 	return 0;
 }
+#endif
 
 int sf_gmac_register(void)
 {
 	struct eth_device *dev;
 	struct sgmac_priv *priv;
+#ifdef CONFIG_SFA18_RGMII_GMAC
 	unsigned char buf[GMAC_DELAY_READ_SIZE+1] = {0};
 	uint gmac_delay = 0;
+#endif
 #ifdef CONFIG_GMAC_USE_GPIO_MDIO
 	uint regValue = 0;
 #else
@@ -844,11 +858,16 @@ int sf_gmac_register(void)
 	}
 #endif
 #else
-	sgmac_phy_init(priv, dev);
+	ret = sgmac_phy_init(priv, dev);
+	if (ret) {
+		printf("Failed to initialize external PHY: %d\n", ret);
+		return ret;
+	}
 
 #endif /* CONFIG_SFA18_GMAC_PHY */
 #endif /* CONFIG_GMAC_USE_GPIO_MDIO */
 
+#ifdef CONFIG_SFA18_RGMII_GMAC
 	sf_get_gmac_delay_from_factory(buf);
 	printf("get gmac delay:%s\n", buf);
 	if ((buf[0] != 0) && (buf[0] != 0xff)) {
@@ -868,9 +887,22 @@ int sf_gmac_register(void)
 		writew(CONFIG_SFA18_GMAC_RX_DELAY, (void *)EMAC_CLK_PHY_RX_I_DLY);
 	}
 	writew(0x1, (void *)EMAC_CLK_PHY_RX_I_DLY_EN);
+#else
+	writew(0x0, (void *)EMAC_CLK_TX_I_DLY);
+	writew(0x0, (void *)EMAC_CLK_PHY_RX_I_DLY);
+	writew(0x0, (void *)EMAC_CLK_PHY_RX_I_DLY_EN);
+#endif
 
 	sgmac_hw_init(dev, priv);
-	sgmac_dma_desc_rings_init(priv);
+	ret = sgmac_hw_init(dev, priv);
+	if (ret)
+		return ret;
+
+	ret = sgmac_dma_desc_rings_init(priv);
+	if (ret) {
+		printf("Failed to initialize GMAC DMA rings: %d\n", ret);
+		return ret;
+	}
 	/* Start up the PHY */
 #ifndef CONFIG_NO_SWITCH_AND_PHY
 	if (priv->gswitch) {

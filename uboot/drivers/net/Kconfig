@@ -207,6 +207,13 @@ config SFA18_GMAC_PHY
 	help
 	  gmac peripheral device is phy
 
+config MOTORCOMM_PHY
+	depends on PHYLIB
+	bool "Motorcomm Ethernet PHYs support"
+	default n
+	help
+	  Enable support for Motorcomm PHYs such as YT8522/YT8522C.
+
 config SFA18_ESWITCH_RST_GPIO
 	depends on SFA18_GMAC
 	hex "GMAC peripheral switch reset gpio number. For example 0xb"

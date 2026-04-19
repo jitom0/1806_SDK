@@ -31,6 +31,15 @@
 #define YT8522_TX_DELAY_CONTROL		0x19
 #define YT8522_EXTENDED_PAD_CONTROL	0x4001
 
+#define YT8522_CHIP_MODE_MASK		(BIT(1) | BIT(0))
+#define YT8522_CHIP_MODE_MII		0x0
+#define YT8522_CHIP_MODE_REMII		0x1
+#define YT8522_CHIP_MODE_RMII2		0x2
+#define YT8522_CHIP_MODE_RMII1		0x3
+
+#define YT_SOFT_RESET_POLL_US		1000
+#define YT_SOFT_RESET_TIMEOUT		1000
+
 #define msleep(n)			udelay((n) * 1000)
 
 static int ytphy_read_ext(struct phy_device *phydev, u32 regnum)
@@ -64,6 +73,7 @@ static int ytphy_soft_reset(struct phy_device *phydev)
 {
 	int ret;
 	int val;
+	int timeout = YT_SOFT_RESET_TIMEOUT;
 
 	val = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMCR);
 	if (val < 0)
@@ -73,7 +83,16 @@ static int ytphy_soft_reset(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	return 0;
+	while (timeout--) {
+		val = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMCR);
+		if (val < 0)
+			return val;
+		if (!(val & YT_SOFT_RESET))
+			return 0;
+		udelay(YT_SOFT_RESET_POLL_US);
+	}
+
+	return -1;
 }
 
 static int yt8522_config_init(struct phy_device *phydev)
@@ -86,13 +105,25 @@ static int yt8522_config_init(struct phy_device *phydev)
 	if (chip_mode < 0)
 		return chip_mode;
 
-	chip_mode &= (BIT(1) | BIT(0));
+	chip_mode &= YT8522_CHIP_MODE_MASK;
 
 	val = ytphy_read_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1);
 	if (val < 0)
 		return val;
 
-	if (chip_mode == 0x2) {
+	#ifdef CONFIG_SFA18_RMII_GMAC
+	if (chip_mode != YT8522_CHIP_MODE_RMII1) {
+		val &= ~YT8522_CHIP_MODE_MASK;
+		val |= YT8522_CHIP_MODE_RMII1;
+		ret = ytphy_write_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1, val);
+		if (ret < 0)
+			return ret;
+
+		chip_mode = YT8522_CHIP_MODE_RMII1;
+	}
+	#endif
+
+	if (chip_mode == YT8522_CHIP_MODE_RMII2) {
 		val |= BIT(4);
 		ret = ytphy_write_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1, val);
 		if (ret < 0)
@@ -105,16 +136,18 @@ static int yt8522_config_init(struct phy_device *phydev)
 		ret = ytphy_write_ext(phydev, YT8522_EXTENDED_PAD_CONTROL, 0x81d4);
 		if (ret < 0)
 			return ret;
-	} else if (chip_mode == 0x3) {
+	} else if (chip_mode == YT8522_CHIP_MODE_RMII1) {
 		val |= BIT(4);
 		ret = ytphy_write_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1, val);
 		if (ret < 0)
 			return ret;
 	}
 
-	ret = ytphy_write_ext(phydev, YT8522_TX_CLK_DELAY, 0);
-	if (ret < 0)
-		return ret;
+	if (chip_mode == YT8522_CHIP_MODE_MII || chip_mode == YT8522_CHIP_MODE_REMII) {
+		ret = ytphy_write_ext(phydev, YT8522_TX_CLK_DELAY, 0);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = ytphy_write_ext(phydev, YT8522_ANAGLOG_IF_CTRL, 0xbf2a);
 	if (ret < 0)

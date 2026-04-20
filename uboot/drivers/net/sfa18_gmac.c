@@ -468,7 +468,7 @@ int sgmac_mdio_read(struct mii_dev *bus, int addr, int devad, int reg)
 	value = value | GMII_ADDR_MASK_GB;
 	writel(value, priv->base + GMAC_GMII_ADDR);
 	// wait for complete
-	wait_phy_rw_not_busy(priv);
+    wait_phy_rw_not_busy(priv);
 	return readl(priv->base + GMAC_GMII_DATA) & GMII_DATA_MASK;
 }
 
@@ -548,6 +548,7 @@ static int sgmac_phy_init(struct sgmac_priv *priv, void *dev)
 {
 	struct phy_device *phydev;
 	int mask = 0xffffffff, ret;
+	int nonzero_mask = 0xfffffffe;
 	printf("sgmac: phy_init bus=%s mask=0x%x interface=%s\n",
 	       priv->bus ? priv->bus->name : "<null>", mask,
 #ifdef CONFIG_SFA18_RGMII_GMAC
@@ -558,10 +559,21 @@ static int sgmac_phy_init(struct sgmac_priv *priv, void *dev)
 	);
 
 #ifdef CONFIG_SFA18_RGMII_GMAC
-	phydev = phy_find_by_mask(priv->bus, mask, PHY_INTERFACE_MODE_RGMII);
+	phydev = phy_find_by_mask(priv->bus, nonzero_mask,
+				 PHY_INTERFACE_MODE_RGMII);
 #else
-	phydev = phy_find_by_mask(priv->bus, mask, PHY_INTERFACE_MODE_RMII);
+	phydev = phy_find_by_mask(priv->bus, nonzero_mask,
+				 PHY_INTERFACE_MODE_RMII);
 #endif
+	if (!phydev) {
+		printf("sgmac: no PHY found on non-zero addr mask=0x%x, fallback to mask=0x%x\n",
+		       nonzero_mask, mask);
+#ifdef CONFIG_SFA18_RGMII_GMAC
+		phydev = phy_find_by_mask(priv->bus, mask, PHY_INTERFACE_MODE_RGMII);
+#else
+		phydev = phy_find_by_mask(priv->bus, mask, PHY_INTERFACE_MODE_RMII);
+#endif
+	}
 	if (!phydev)
 		return -ENODEV;
 	printf("sgmac: phy_found addr=%d phy_id=0x%x drv=%s\n", phydev->addr,

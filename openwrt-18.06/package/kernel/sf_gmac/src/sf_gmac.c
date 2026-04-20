@@ -1,5 +1,6 @@
 #include "sf_gmac.h"
 #include "yt8521.h"
+#include "yt8522.h"
 #ifdef CONFIG_SFAX8_FACTORY_READ
 #include <sfax8_factory_read.h>
 #endif
@@ -1540,6 +1541,9 @@ static int sgmac_recovery(struct net_device *ndev)
 		priv->phydev = of_phy_connect(ndev, priv->phy_node, sgmac_adjust_link,
 				0, PHY_INTERFACE_MODE_RGMII);
 #endif
+#elif defined(CONFIG_SFAX8_RMII_GMAC)
+		priv->phydev = of_phy_connect(ndev, priv->phy_node, sgmac_adjust_link,
+				0, PHY_INTERFACE_MODE_RMII);
 #else
 		priv->phydev = of_phy_connect(ndev, priv->phy_node, sgmac_adjust_link,
 				0, PHY_INTERFACE_MODE_GMII);
@@ -1780,6 +1784,9 @@ static int sgmac_open(struct net_device *ndev)
 		priv->phydev = of_phy_connect(ndev, priv->phy_node, sgmac_adjust_link,
 				0, PHY_INTERFACE_MODE_RGMII);
 #endif
+#elif defined(CONFIG_SFAX8_RMII_GMAC)
+		priv->phydev = of_phy_connect(ndev, priv->phy_node, sgmac_adjust_link,
+				0, PHY_INTERFACE_MODE_RMII);
 #else
 		priv->phydev = of_phy_connect(ndev, priv->phy_node, sgmac_adjust_link,
 				0, PHY_INTERFACE_MODE_GMII);
@@ -1807,6 +1814,16 @@ static int sgmac_open(struct net_device *ndev)
 		else if (priv->phydev->phy_id == 0x10a){
 			// init yt8521
 			yt8521_config_init(pmdio_bus, priv->phydev);
+		}
+		else if (priv->phydev->phy_id == PHY_ID_YT8522 ||
+				 (priv->phydev->phy_id & 0xffff) == PHY_ID_YT8522_MASKED){
+			// init yt8522c
+			ret = yt8522_config_init(pmdio_bus, priv->phydev);
+			if (ret < 0) {
+				netdev_err(ndev, "yt8522_config_init failed: %d\n", ret);
+				sgmac_stop(ndev);
+				return ret;
+			}
 		}
 	}
 
@@ -3467,11 +3484,14 @@ static void sf_trigger_eswitch_hwReset(struct sgmac_priv *priv)
 #ifdef CONFIG_SFAX8_RMII_GMAC
 static void inline gtx_clk_pad_init(struct sgmac_priv *priv)
 {
-	u32 gtx_gpio = 0;
+	int ret;
+	u32 gtx_gpio = 0xff;
 
-	if (of_property_read_u32(priv->dev->of_node, "gtx-clk-gpio", &gtx_gpio) == 0 ||
+	if (of_property_read_u32(priv->dev->of_node, "gtx-clk-gpio", &gtx_gpio) == 0 &&
 			gtx_gpio != 0xff) {
-		devm_gpio_request(priv->dev, gtx_gpio, "gtxGpio");
+		ret = devm_gpio_request(priv->dev, gtx_gpio, "gtxGpio");
+		if (ret)
+			return;
 		gpio_direction_input(gtx_gpio);
 		printk("end %s\n", __func__);
 	}
@@ -3531,10 +3551,13 @@ static int sgmac_probe(struct platform_device *pdev) {
 	sgmac_mem_init();
 #endif
 
+
 #ifdef CONFIG_SFAX8_RGMII_GMAC
 	if(release_reset_with_value(SF_EMAC_SOFT_RESET, 1))
+#elif defined(CONFIG_SFAX8_RMII_GMAC)
+	if(release_reset_with_value(SF_EMAC_SOFT_RESET, 0))
 #else
-	  if(release_reset_with_value(SF_EMAC_SOFT_RESET, 2))
+	if(release_reset_with_value(SF_EMAC_SOFT_RESET, 2))
 #endif
 		return -EFAULT;
 
@@ -3607,6 +3630,7 @@ static int sgmac_probe(struct platform_device *pdev) {
 	}
 
 	// set gmac rgmii data line delay
+#ifdef CONFIG_SFAX8_RGMII_GMAC
 #ifdef CONFIG_SFAX8_FACTORY_READ
 	if(sf_get_value_from_factory(READ_GMAC_DELAY, buf, 4) == 0)
 	{
@@ -3631,6 +3655,7 @@ static int sgmac_probe(struct platform_device *pdev) {
 			writel(0x1, (void *)0xb9e0444c);
 		}
 	}
+#endif
 
 #ifdef CONFIG_SFAX8_GMAC_TCLKCHOOSE
 	priv->eth_tclk = of_clk_get(priv->dev->of_node, 3);

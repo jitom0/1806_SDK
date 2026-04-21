@@ -76,6 +76,14 @@
 	status = "okay";
 };
 
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
 &pwm0 {
 	status = "okay";
 };
@@ -112,22 +120,4 @@
 		poll-interval = <10>;
 		debounce-interval = <20>;
 	};
-};
-
-&wifi_lb {
-	status = "okay";
-
-	#address-cells = <1>;
-	#size-cells = <0>;
-	gpio-leds = <&gpio 12 0>;
-	smp-affinity = <2>;
-};
-
-&wifi_hb {
-	status = "okay";
-
-	#address-cells = <1>;
-	#size-cells = <0>;
-	gpio-leds = <&gpio 12 0>;
-	smp-affinity = <3>;
 };

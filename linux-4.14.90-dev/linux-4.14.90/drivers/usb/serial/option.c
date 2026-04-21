@@ -555,6 +555,13 @@ static void option_instat_callback(struct urb *urb);
 #define WETELECOM_PRODUCT_6802			0x6802
 #define WETELECOM_PRODUCT_WMD300		0x6803
 
+/* SIMCOM */
+#define SIMCOM_VENDOR_ID 			0x1e0e
+#define SIMCOM_PRODUCT_PID_X9011 	0x9011 
+
+static const struct option_blacklist_info simcom_pid9011_blacklist={
+	.reserved=BIT(0) |BIT(1),
+};
 
 /* Device flags */
 
@@ -1944,6 +1951,10 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(WETELECOM_VENDOR_ID, WETELECOM_PRODUCT_6802, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(WETELECOM_VENDOR_ID, WETELECOM_PRODUCT_WMD300, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0x421d, 0xff, 0xff, 0xff) }, /* HP lt2523 (Novatel E371) */
+
+	// SIMCOM
+	{ USB_DEVICE(SIMCOM_VENDOR_ID, SIMCOM_PRODUCT_PID_X9011),
+		.driver_info=(kernel_ulong_t)&simcom_pid9011_blacklist},
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);

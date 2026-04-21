@@ -610,6 +610,7 @@ struct sgmac_priv {
 	int duplex; // PHY's last set speed.
 	struct phy_device *phydev; // Pointer to attached PHY device.
 	struct mii_bus *bus;       // Pointer to the current MII bus.
+	phy_interface_t phy_interface;
 	struct device_node *phy_node;
 
 	struct rtnl_link_stats64 netstats;

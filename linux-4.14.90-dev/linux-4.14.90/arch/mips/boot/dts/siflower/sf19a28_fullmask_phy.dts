@@ -15,6 +15,7 @@
 
 &gmac {
 	status = "okay";
+	delay = <0x40 0x90>;
 	phy-mode = "rmii";
 	phy = <&phy0>;
 	phy0: ethernet-phy@0 {

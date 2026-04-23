@@ -488,7 +488,7 @@
 		reg = <0x17000000 0x40000>;
 		interrupts = <GIC_SHARED 128 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&usbphyclk 0>;
-		dr_mode = "otg";
+		dr_mode = "host";
 		phys = <&usb_phy>;
 		phy-names = "usb2-phy";
 		usbgrf = <&grfcom>;

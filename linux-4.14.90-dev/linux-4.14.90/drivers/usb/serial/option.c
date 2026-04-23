@@ -559,10 +559,6 @@ static void option_instat_callback(struct urb *urb);
 #define SIMCOM_VENDOR_ID 			0x1e0e
 #define SIMCOM_PRODUCT_PID_X9011 	0x9011 
 
-static const struct option_blacklist_info simcom_pid9011_blacklist={
-	.reserved=BIT(0) |BIT(1),
-};
-
 /* Device flags */
 
 /* Interface does not support modem-control requests */
@@ -574,6 +570,9 @@ static const struct option_blacklist_info simcom_pid9011_blacklist={
 /* Interface must have two endpoints */
 #define NUMEP2		BIT(16)
 
+// static const struct option_blacklist_info simcom_pid9011_blacklist={
+// 	.reserved=BIT(0) |BIT(1),
+// };
 
 static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
@@ -1954,7 +1953,8 @@ static const struct usb_device_id option_ids[] = {
 
 	// SIMCOM
 	{ USB_DEVICE(SIMCOM_VENDOR_ID, SIMCOM_PRODUCT_PID_X9011),
-		.driver_info=(kernel_ulong_t)&simcom_pid9011_blacklist},
+		.driver_info = RSVD(0) | RSVD(1)},
+		// .driver_info=(kernel_ulong_t)&simcom_pid9011_blacklist},
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);

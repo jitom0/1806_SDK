@@ -3813,7 +3813,7 @@ static int sgmac_probe(struct platform_device *pdev) {
 #ifdef CONFIG_SFAX8_RMII_GMAC
 	/* init gmac to rmii mode */
 	writel(0x24, (void *)0xb9e04440);
-	gtx_clk_pad_init(priv);
+	// gtx_clk_pad_init(priv);
 #endif
 
 	/* Get PHY from device tree */

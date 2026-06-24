@@ -68,7 +68,7 @@
 
 		partition@a0000 {
 			label = "firmware";
-			reg = <0xa0000 0x760000>; /* 640k-16M */
+			reg = <0xa0000 0xf60000>; /* 640k-16M */
 		};
 	};
 };

@@ -39,6 +39,32 @@ else
 	BOOT_FLAG :=
 endif
 
+SIFLOWER_LEGACY_SUPPORTED_DEVICES := \
+	sf19a28 \
+	siflower,sf19a28 \
+	siflower,sf19a28-soc \
+	sf19a28-fullmask \
+	sf19a28-evb \
+	sf19a28-ac28 \
+	sf19a28-ac28s \
+	sf19a28-bpi \
+	sf19a28-bpi-luci2 \
+	sf19a28-bpi-luci2-neutral \
+	sf19a28-bpi-luci2-siflower \
+	sf19a28-router-1211 \
+	sf19a28-yts \
+	sf19a28-rep \
+	sf19a28-rep-sw \
+	sf19a28-rep-phy \
+	sf19a28-phy \
+	sfax8 \
+	mips,sfax8 \
+	siflower,sfax8
+
+define Build/append-siflower-legacy-metadata
+	echo $(call metadata_json,$(SIFLOWER_LEGACY_SUPPORTED_DEVICES)) | fwtool -I - $(1)
+endef
+
 #  $(STAGING_DIR_HOST)/bin/lzma e $(1) -lc1 -lp2 -pb2 $(2)
 define CompressLzma
   lzma e $(1) -lc1 -lp2 -pb2 $(2)
@@ -78,9 +104,7 @@ define Image/MakeSysupgradeBinary
 	cat $(KDIR)/uImage.lzma $(KDIR)/root.squashfs > $(KDIR)/$(output_name)
 	$(call prepare_generic_squashfs,$(KDIR)/$(output_name))
 	$(CP) $(KDIR)/$(output_name) $(BIN_DIR)/$(output_name)
-ifeq ($(CONFIG_NAND_SUPPORT), y)
-	$(call Build/append-metadata,$(BIN_DIR)/$(output_name))
-endif
+	$(call Build/append-siflower-legacy-metadata,$(BIN_DIR)/$(output_name))
 endef
 
 define Image/Build/Initramfs

@@ -202,9 +202,10 @@ return L.view.extend({
 			.then(L.bind(function(btn, res) {
 				var keep = E('input', { type: 'checkbox' }),
 				    force = E('input', { type: 'checkbox' }),
-				    is_valid = res[1].valid,
+				    test_ok = (res[2].code == 0),
+				    is_valid = res[1].valid || test_ok,
 				    is_forceable = res[1].forceable,
-				    allow_backup = res[1].allow_backup,
+				    allow_backup = res[1].allow_backup || test_ok,
 				    is_too_big = (storage_size > 0 && res[0].size > storage_size),
 				    body = [];
 

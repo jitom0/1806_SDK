@@ -1,7 +1,5 @@
 /dts-v1/;
 
-/memreserve/ 0x04000000 0x03ffffff;
-
 #include "sf19a28_fullmask.dtsi"
 #include "sf19a28-thermal_common.dtsi"
 
